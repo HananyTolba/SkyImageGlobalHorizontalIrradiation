@@ -2,7 +2,7 @@
 import scipy.io as sio
 
 # %%
-mat_contents = sio.loadmat('C:\\Users\\hanany\\Documents\\cam_DeepLearning\\ImGHIrec2.mat')
+mat_contents = sio.loadmat('ImGHIrec2.mat')
 
 # %%
 
@@ -11,7 +11,7 @@ mat_contents = sio.loadmat('C:\\Users\\hanany\\Documents\\cam_DeepLearning\\ImGH
 
 
 # %%
-DateTimeCom=sio.loadmat('C:\\Users\\hanany\\Documents\\cam_DeepLearning\\DateTimeCom.mat')
+DateTimeCom=sio.loadmat('DateTimeCom.mat')
 dt=DateTimeCom['DateTimeCom']
 
 
@@ -33,12 +33,12 @@ mat_Im=mat_contents["ImGHIrec2"]
 mat_Im.shape
 
 # %%
-x=mat_Im[:,:,0]
-y=mat_Im[:,:,5]
+x=mat_Im[:,:,100]
+y=mat_Im[:,:,105]
 
 # %%
-x=x.reshape(28*26,1)
-y=y.reshape(28*26,1)
+x=x.reshape(x.size,1)
+y=y.reshape(y.size,1)
 
 # %%
 
@@ -46,9 +46,14 @@ from matplotlib import pyplot as plt
 
 
 # %%
-plt.plot(x)
-plt.plot(y)
+plt.figure
+plt.plot(x,y,'xk')
 plt.show()
+plt.figure
+plt.plot(x,'r')
+plt.plot(y,'b')
+plt.show()
+
 
 # %%
 

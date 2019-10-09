@@ -49,15 +49,12 @@ y=y.reshape(y.size,1)
 
 from matplotlib import pyplot as plt
 
-
 # %%
-plt.plot(x)
-plt.plot(y)
-plt.show()
+ghi=mat_contents["GHI"]
+ghiset=ghi[:13000]
+ghiset_orig=ghiset
 
-# %%
-
-mat_Im.shape[0]*mat_Im.shape[1]
+max(ghiset)
 
 # %%
 dataset_orig=mat_Im.reshape(mat_Im.shape[0]*mat_Im.shape[1],mat_Im.shape[2])
@@ -74,15 +71,18 @@ from sklearn.preprocessing import MinMaxScaler
 scaler = MinMaxScaler(feature_range=(0, 1))
 dataset = scaler.fit_transform(dataset_orig)
 
+ghiset=scaler.fit_transform(ghiset)
+
 #df_test['scaled_GHI'] = scaler.fit_transform(np.array(df_test['GHI']).reshape(-1, 1))
 
-train_size=int(dataset_orig.shape[1]*.7)
+train_size=int(dataset_orig.shape[1]*.85)
 
 data_train=dataset[:,:train_size]
 data_test=dataset[:,train_size:]
 data_train=data_train.T
 data_test=data_test.T
-
+ghiset_train=ghiset[:train_size]
+ghiset_test=ghiset[train_size:]
 
 # %%
 data_train.shape,data_test.shape,dataset_orig.shape
@@ -94,14 +94,14 @@ data_train.shape,data_test.shape,dataset_orig.shape
 
 # %%
 dimInput=1
-X_train, y_train = data_train[:-1,:],data_train[dimInput:,:]
-X_val, y_val = data_test[:-1,:],data_test[dimInput:,:]
+X_train, y_train = data_train,ghiset_train
+X_val, y_val = data_test,ghiset_test
 
 # %%
 X_val.shape,y_val.shape,X_train.shape,y_train.shape
 
 
-# %%
+
 from keras.layers import Dense, Input, Dropout
 from keras.models import Sequential
 from keras.optimizers import SGD
@@ -110,58 +110,43 @@ from keras.models import load_model
 from keras.callbacks import ModelCheckpoint
 from keras.callbacks import TensorBoard
 
-# %%
+
 #definition des entrées. None indicates the number of instances
 input_layer = Input(shape=(728,), dtype='float32')
 
-# %%
 #Les couches Denses avec une fonction d'activation relu
-dense1 = Dense(32, activation='relu')(input_layer)
+dense1 = Dense(128, activation='sigmoid')(input_layer)
 dropout_layer = Dropout(0.1)(dense1)
-dense2 = Dense(128, activation='relu')(dense1)
 
-dense3 = Dense(32, activation='relu')(dense2)
+
+dense2 = Dense(128, activation='sigmoid')(dense1)
+dropout_layer = Dropout(0.1)(dense2)
+
+
+dense3 = Dense(64, activation='sigmoid')(dense2)
 dropout_layer = Dropout(0.1)(dense3)
 
-# dense4 = Dense(8, activation='relu')(dense3)
-# dropout_layer = Dropout(0.1)(dense4)
-
-# %%
-output_layer = Dense(728, activation='relu')(dropout_layer)
+#dense4 = Dense(8, activation='relu')(dense3)
+#dropout_layer = Dropout(0.1)(dense4)
 
 
-# %%
+
+output_layer = Dense(1, activation='sigmoid')(dropout_layer)
+
+
+
+
 ts_model = Model(inputs=input_layer, outputs=output_layer)
 ts_model.compile(loss='mean_squared_error', optimizer='adam')
 
 ts_model.summary()
 
-# %%
-save_weights_at = os.path.join(path, 'Cam_MLP_poids.{epoch:02d}-{val_loss:.4f}.hdf5')
-print(save_weights_at)
-
-# %%
-save_best = ModelCheckpoint(save_weights_at, monitor='val_loss', verbose=0,
-                            save_best_only=True, save_weights_only=False, mode='min',
-                            period=1)
 
 
-# %%
-ts_model.fit(x=X_train, y=y_train, batch_size=100, epochs=10,verbose=1, callbacks=[save_best], validation_data=(X_val, y_val),
-           shuffle=True)
 
 
-# %%
 
-
-# %%
-
-
-# %%
-files = sorted(os.listdir(path), key=os.path.getctime)
-
-oldest = files[0]
-newest = files[-1]
+newest = "CamGHI_MLP_estim.hdf5"
 print(newest)
 
 # %%
@@ -170,64 +155,60 @@ os.path.join(path,newest)
 # %%
 best_model = load_model(os.path.join(path,newest))
 preds = best_model.predict(X_val)
-pred_PRES = preds
-pred_PRES = np.squeeze(pred_PRES)
 
+ghi_est = scaler.inverse_transform(preds)
+#ghi_est = np.squeeze(ghi_est)
+
+y_val=scaler.inverse_transform(y_val)
 
 from sklearn.metrics import r2_score,mean_squared_error
-r2 = r2_score(y_val, pred_PRES)
+r2 = r2_score(y_val, ghi_est)
 
 #print('R-squared for the validation set:'.format(r2))
 print("R-squared en test  est {} ".format(r2))
 
 # calculate root mean squared error
-testScore = np.sqrt(mean_squared_error(y_val, pred_PRES))
+testScore = np.sqrt(mean_squared_error(y_val, ghi_est))
 print("L'erreur en test  est {} (nRMSE)".format(testScore))
 
 
 
 # %%
+#ghi_est=pred_PRES
 
-IM=y_val[59,:]
-IM=IM.reshape(28, 26)
-
-plt.imshow(IM)
-
-
-# %%
-IM=pred_PRES[59,:]
-IM=IM.reshape(28, 26)
-
-plt.imshow(IM)
-
-
-
-# %%
-plt.plot(y_val[100,:])
-
-
-plt.plot(pred_PRES[100,:])
+ghi_true=y_val
+plt.figure
+plt.plot(ghi_true)
+plt.plot(ghi_est,'r')
 plt.show()
 
+
+
 # %%
-# %%
+fits = best_model.predict(X_train)
+plt.figure
+plt.plot(y_train)
+plt.plot(fits,'r')
 plt.show()
 
-# %%
-import glob
-path = os.getcwd()
-
-file_list=glob.glob(path + "**/*.hdf5", recursive=True)
-#print(file_list)
-for f in file_list :
-    os.remove(f)
-#cprint("Tout les fichers hdf5 ont été supprimés !".center(50).upper(),'red')
+plt.figure
+plt.plot(ghi_true,ghi_est,'kx')
+plt.show()
 
 
-# %%
+plt.figure
+plt.plot(y_train,fits,'kx')
+plt.show()
+
+# x0=X_val[:,0]
+# pred_non_up=[]
+# for i in range(100):
+# 	pred_non_up.append(best_model.predict(x0))
+
+# pred_non_up=np.array(pred_non_up)
+# plt.figure
+# plt.plot(ghi_true)
+# plt.plot(pred_non_up)
+# plt.show()
 
 
-# %%
-
-
-# %%
